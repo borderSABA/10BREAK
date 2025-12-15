@@ -2,6 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
+  <!-- ★ スマホ用のviewportを追加 ★ -->
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>10BREAK</title>
   <style>
     body {
@@ -18,27 +20,26 @@
     }
 
     h1 {
-      font-size: 20px;
+      font-size: clamp(18px, 5vw, 22px);
       margin: 8px 0 4px;
     }
 
     /* メニュー */
 
     #menu {
-      margin-top: 24px;
+      margin-top: 16px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
     }
 
-    /* ★ モードボタンを2×2の均等グリッドに変更 ★ */
+    /* 4ボタンを2×2の均等グリッドで配置 */
     #mode-buttons {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 10px;
-      width: 320px;       /* 全体幅を固定して均等配置 */
-      max-width: 90vw;
+      width: min(90vw, 320px);
     }
 
     .menu-btn {
@@ -50,7 +51,7 @@
       font-size: 13px;
       cursor: pointer;
       text-align: center;
-      width: 100%;        /* グリッドセルいっぱいに広げる */
+      width: 100%;
       box-sizing: border-box;
     }
 
@@ -79,32 +80,35 @@
 
     #game-container {
       margin-top: 12px;
-      display: none; /* 初期は非表示。ゲーム開始時に flex にする */
+      display: none;
       flex-direction: column;
       align-items: center;
       gap: 10px;
-      position: relative; /* BREAKラベル用 */
+      position: relative;
     }
 
+    /* ★ 画面幅に合わせて盤面サイズを自動調整 ★ */
     #board {
       display: grid;
-      grid-template-columns: repeat(4, 60px);
-      grid-template-rows: repeat(4, 60px);
+      grid-template-columns: repeat(4, 1fr);
       gap: 6px;
       margin-top: 8px;
+      width: min(94vw, 480px);
+      max-width: 480px;
     }
 
     .cell {
-      width: 60px;
-      height: 60px;
+      width: 100%;
+      aspect-ratio: 1 / 1;         /* 正方形にする */
       border-radius: 8px;
       border: none;
-      font-size: 22px;
+      font-size: clamp(18px, 6vw, 28px); /* 画面に合わせて数字も拡大 */
       font-weight: bold;
       cursor: pointer;
       background: #444;
       color: #fff;
-      transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.1s, opacity 0.1s, filter 0.1s;
+      transition: transform 0.08s ease, box-shadow 0.08s ease,
+                  background 0.1s, opacity 0.1s, filter 0.1s;
     }
 
     /* 数字別カラー（モノクロ時は付けない） */
@@ -138,40 +142,25 @@
     }
 
     @keyframes popOut {
-      0% {
-        transform: scale(1);
-        opacity: 1;
-      }
-      50% {
-        transform: scale(1.15);
-        opacity: 1;
-      }
-      100% {
-        transform: scale(0.1);
-        opacity: 0;
-      }
+      0% { transform: scale(1);   opacity: 1; }
+      50%{ transform: scale(1.15);opacity: 1; }
+      100%{transform: scale(0.1); opacity: 0; }
     }
 
-    /* 落下アニメーション（背景は変えない） */
+    /* 落下アニメーション */
     .cell.falling {
       animation: fallDown 0.18s ease-out;
     }
 
     @keyframes fallDown {
-      0% {
-        transform: translateY(-20px);
-        opacity: 0;
-      }
-      100% {
-        transform: translateY(0);
-        opacity: 1;
-      }
+      0% { transform: translateY(-20px); opacity: 0; }
+      100%{ transform: translateY(0);    opacity: 1; }
     }
 
     #info {
       display: flex;
-      gap: 12px;
-      font-size: 13px;
+      gap: 8px;
+      font-size: clamp(11px, 3.2vw, 13px);
       flex-wrap: wrap;
       justify-content: center;
     }
@@ -179,6 +168,7 @@
     #status {
       font-size: 14px;
       min-height: 18px;
+      text-align: center;
     }
 
     #controls {
@@ -228,22 +218,10 @@
     }
 
     @keyframes breakFade {
-      0% {
-        opacity: 0;
-        transform: translateX(-50%) scale(0.4);
-      }
-      20% {
-        opacity: 1;
-        transform: translateX(-50%) scale(1.1);
-      }
-      70% {
-        opacity: 1;
-        transform: translateX(-50%) scale(1.0);
-      }
-      100% {
-        opacity: 0;
-        transform: translateX(-50%) scale(1.4);
-      }
+      0%   { opacity: 0; transform: translateX(-50%) scale(0.4); }
+      20%  { opacity: 1; transform: translateX(-50%) scale(1.1); }
+      70%  { opacity: 1; transform: translateX(-50%) scale(1.0); }
+      100% { opacity: 0; transform: translateX(-50%) scale(1.4); }
     }
   </style>
 </head>
@@ -297,33 +275,29 @@
     const TARGET = 10;
     const MAX_SELECT = 3;
 
-    /** @type {(number|null)[][]} */
     let board = [];
-    /** @type {{row:number,col:number}[]} */
     let selectedCells = [];
-    /** @type {{row:number,col:number}[]} */
     let clearingCells = [];
-    /** @type {{row:number,col:number}[]} */
     let fallingCells = [];
 
     let score = 0;
     let gameOver = false;
     let animating = false;
-    let currentBreakChain = 0;  // 今の連鎖数
-    let totalBreakCount = 0;    // 通算BREAK回数
+    let currentBreakChain = 0;
+    let totalBreakCount = 0;
 
     // 'endless' | 'score1000' | 'time60' | 'break10'
     let gameMode = null;
     let useColor = true;
 
-    let timeLeft = 0;     // time60用
-    let timeElapsed = 0;  // score1000 / break10用（経過秒）
+    let timeLeft = 0;
+    let timeElapsed = 0;
     let timerId = null;
 
-    let inputEnabled = false;  // BREAK→START演出が終わるまで false
+    let inputEnabled = false;
 
     function randValue() {
-      return Math.floor(Math.random() * 9) + 1; // 1〜9
+      return Math.floor(Math.random() * 9) + 1;
     }
 
     function createEmptyBoard() {
@@ -349,13 +323,11 @@
         }
       }
       const n = values.length;
-      // 2つ組み合わせ
       for (let i = 0; i < n; i++) {
         for (let j = i + 1; j < n; j++) {
           if (values[i] + values[j] === TARGET) return true;
         }
       }
-      // 3つ組み合わせ
       for (let i = 0; i < n; i++) {
         for (let j = i + 1; j < n; j++) {
           for (let k = j + 1; k < n; k++) {
@@ -368,33 +340,24 @@
 
     function findLineClearPositions() {
       const posSet = new Set();
-
-      // 横4
       for (let r = 0; r < ROWS; r++) {
         const v0 = board[r][0];
-        if (
-          v0 != null &&
-          board[r][1] === v0 &&
-          board[r][2] === v0 &&
-          board[r][3] === v0
-        ) {
+        if (v0 != null &&
+            board[r][1] === v0 &&
+            board[r][2] === v0 &&
+            board[r][3] === v0) {
           for (let c = 0; c < COLS; c++) posSet.add(`${r},${c}`);
         }
       }
-
-      // 縦4
       for (let c = 0; c < COLS; c++) {
         const v0 = board[0][c];
-        if (
-          v0 != null &&
-          board[1][c] === v0 &&
-          board[2][c] === v0 &&
-          board[3][c] === v0
-        ) {
+        if (v0 != null &&
+            board[1][c] === v0 &&
+            board[2][c] === v0 &&
+            board[3][c] === v0) {
           for (let r = 0; r < ROWS; r++) posSet.add(`${r},${c}`);
         }
       }
-
       return Array.from(posSet).map(key => {
         const [r, c] = key.split(',').map(Number);
         return { row: r, col: c };
@@ -737,8 +700,7 @@
       initBoard();
       setupTimer();
       document.getElementById('menu').style.display = 'none';
-      const gc = document.getElementById('game-container');
-      gc.style.display = 'flex';
+      document.getElementById('game-container').style.display = 'flex';
       renderBoard();
       playStartSequence();
     }
