@@ -2,10 +2,19 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <!-- ★ スマホ用のviewportを追加 ★ -->
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>10BREAK</title>
+  <!-- スマホでの拡大禁止＋幅フィット -->
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>足して10（4モード＋BREAK/START演出）</title>
   <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;          /* ページスクロール禁止 */
+      touch-action: manipulation;/* ダブルタップなどを減らす */
+    }
+
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       background: #222;
@@ -15,8 +24,8 @@
       align-items: center;
       justify-content: flex-start;
       min-height: 100vh;
-      margin: 0;
       padding: 16px;
+      box-sizing: border-box;
     }
 
     h1 {
@@ -34,7 +43,7 @@
       gap: 12px;
     }
 
-    /* 4ボタンを2×2の均等グリッドで配置 */
+    /* 4ボタンを2×2の均等グリッド */
     #mode-buttons {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -87,7 +96,7 @@
       position: relative;
     }
 
-    /* ★ 画面幅に合わせて盤面サイズを自動調整 ★ */
+    /* 画面幅に合わせて盤面サイズを自動調整 */
     #board {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -99,10 +108,10 @@
 
     .cell {
       width: 100%;
-      aspect-ratio: 1 / 1;         /* 正方形にする */
+      aspect-ratio: 1 / 1;         /* 正方形 */
       border-radius: 8px;
       border: none;
-      font-size: clamp(18px, 6vw, 28px); /* 画面に合わせて数字も拡大 */
+      font-size: clamp(18px, 6vw, 28px);
       font-weight: bold;
       cursor: pointer;
       background: #444;
@@ -226,7 +235,7 @@
   </style>
 </head>
 <body>
-  <h1>10BREAK</h1>
+  <h1>足して10</h1>
 
   <!-- メインメニュー -->
   <div id="menu">
@@ -295,6 +304,30 @@
     let timerId = null;
 
     let inputEnabled = false;
+
+    /* ===== スクロール＆ダブルタップ拡大の抑制 ===== */
+
+    // スワイプによるスクロールを止める
+    document.addEventListener('touchmove', function (e) {
+      e.preventDefault();
+    }, { passive: false });
+
+    // ダブルタップでの拡大を止める
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', function (e) {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        e.preventDefault();
+      }
+      lastTouchEnd = now;
+    }, { passive: false });
+
+    // dblclickイベント由来のズームも防ぐ
+    document.addEventListener('dblclick', function (e) {
+      e.preventDefault();
+    }, { passive: false });
+
+    /* ========== ここからゲームロジック ========== */
 
     function randValue() {
       return Math.floor(Math.random() * 9) + 1;
