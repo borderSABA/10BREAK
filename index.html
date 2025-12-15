@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <!-- スマホでの拡大禁止＋幅フィット -->
+  <!-- スマホでの拡大ほぼ禁止＋幅フィット -->
   <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>足して10（4モード＋BREAK/START演出）</title>
@@ -11,8 +11,7 @@
       height: 100%;
       margin: 0;
       padding: 0;
-      overflow: hidden;          /* ページスクロール禁止 */
-      touch-action: manipulation;/* ダブルタップなどを減らす */
+      overflow: hidden;          /* ページスクロールをほぼ禁止 */
     }
 
     body {
@@ -108,7 +107,7 @@
 
     .cell {
       width: 100%;
-      aspect-ratio: 1 / 1;         /* 正方形 */
+      aspect-ratio: 1 / 1;
       border-radius: 8px;
       border: none;
       font-size: clamp(18px, 6vw, 28px);
@@ -304,30 +303,6 @@
     let timerId = null;
 
     let inputEnabled = false;
-
-    /* ===== スクロール＆ダブルタップ拡大の抑制 ===== */
-
-    // スワイプによるスクロールを止める
-    document.addEventListener('touchmove', function (e) {
-      e.preventDefault();
-    }, { passive: false });
-
-    // ダブルタップでの拡大を止める
-    let lastTouchEnd = 0;
-    document.addEventListener('touchend', function (e) {
-      const now = Date.now();
-      if (now - lastTouchEnd <= 300) {
-        e.preventDefault();
-      }
-      lastTouchEnd = now;
-    }, { passive: false });
-
-    // dblclickイベント由来のズームも防ぐ
-    document.addEventListener('dblclick', function (e) {
-      e.preventDefault();
-    }, { passive: false });
-
-    /* ========== ここからゲームロジック ========== */
 
     function randValue() {
       return Math.floor(Math.random() * 9) + 1;
