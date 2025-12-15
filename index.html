@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>10BREAK</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #222;
+      color: #f5f5f5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      margin: 0;
+      padding: 16px;
+    }
+
+    h1 {
+      font-size: 20px;
+      margin: 8px 0 4px;
+    }
+
+    /* メニュー */
+
+    #menu {
+      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* ★ モードボタンを2×2の均等グリッドに変更 ★ */
+    #mode-buttons {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      width: 320px;       /* 全体幅を固定して均等配置 */
+      max-width: 90vw;
+    }
+
+    .menu-btn {
+      padding: 10px 6px;
+      border-radius: 12px;
+      border: none;
+      background: #03a9f4;
+      color: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      text-align: center;
+      width: 100%;        /* グリッドセルいっぱいに広げる */
+      box-sizing: border-box;
+    }
+
+    .menu-btn:hover {
+      background: #0288d1;
+    }
+
+    #settings {
+      font-size: 14px;
+      text-align: center;
+    }
+
+    #settings h3 {
+      margin: 0 0 4px;
+      font-size: 14px;
+      font-weight: normal;
+      color: #ccc;
+    }
+
+    #settings label {
+      margin: 0 8px;
+      cursor: pointer;
+    }
+
+    /* ゲーム画面 */
+
+    #game-container {
+      margin-top: 12px;
+      display: none; /* 初期は非表示。ゲーム開始時に flex にする */
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      position: relative; /* BREAKラベル用 */
+    }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(4, 60px);
+      grid-template-rows: repeat(4, 60px);
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .cell {
+      width: 60px;
+      height: 60px;
+      border-radius: 8px;
+      border: none;
+      font-size: 22px;
+      font-weight: bold;
+      cursor: pointer;
+      background: #444;
+      color: #fff;
+      transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.1s, opacity 0.1s, filter 0.1s;
+    }
+
+    /* 数字別カラー（モノクロ時は付けない） */
+    .cell.v1 { background: #3949ab; }
+    .cell.v2 { background: #1e88e5; }
+    .cell.v3 { background: #00acc1; }
+    .cell.v4 { background: #00897b; }
+    .cell.v5 { background: #43a047; }
+    .cell.v6 { background: #fbc02d; }
+    .cell.v7 { background: #fb8c00; }
+    .cell.v8 { background: #e64a19; }
+    .cell.v9 { background: #8e24aa; }
+
+    .cell:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    }
+
+    /* 選択中：背景はそのまま、白フチ＋明るさアップ */
+    .cell.selected {
+      box-shadow: 0 0 0 3px #ffffff inset, 0 0 8px rgba(255,255,255,0.9);
+      filter: brightness(1.3);
+    }
+
+    /* 消去演出用（10消し＆BREAK両方） */
+    .cell.clearing {
+      background: #e91e63;
+      box-shadow: 0 0 0 2px #ffb6c1 inset;
+      animation: popOut 0.18s ease forwards;
+      filter: none;
+    }
+
+    @keyframes popOut {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      50% {
+        transform: scale(1.15);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(0.1);
+        opacity: 0;
+      }
+    }
+
+    /* 落下アニメーション（背景は変えない） */
+    .cell.falling {
+      animation: fallDown 0.18s ease-out;
+    }
+
+    @keyframes fallDown {
+      0% {
+        transform: translateY(-20px);
+        opacity: 0;
+      }
+      100% {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    #info {
+      display: flex;
+      gap: 12px;
+      font-size: 13px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    #status {
+      font-size: 14px;
+      min-height: 18px;
+    }
+
+    #controls {
+      margin-top: 6px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    button.btn {
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: none;
+      background: #03a9f4;
+      color: #fff;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    button.btn:hover {
+      background: #0288d1;
+    }
+
+    .game-over {
+      color: #ff5252;
+      font-weight: bold;
+    }
+
+    /* BREAK / START ラベル */
+
+    #break-label {
+      position: absolute;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%) scale(0.6);
+      font-size: 32px;
+      font-weight: bold;
+      color: #ffeb3b;
+      text-shadow: 0 0 8px rgba(0,0,0,0.7);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .break-anim {
+      animation: breakFade 0.6s ease-out forwards;
+    }
+
+    @keyframes breakFade {
+      0% {
+        opacity: 0;
+        transform: translateX(-50%) scale(0.4);
+      }
+      20% {
+        opacity: 1;
+        transform: translateX(-50%) scale(1.1);
+      }
+      70% {
+        opacity: 1;
+        transform: translateX(-50%) scale(1.0);
+      }
+      100% {
+        opacity: 0;
+        transform: translateX(-50%) scale(1.4);
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>10BREAK</h1>
+
+  <!-- メインメニュー -->
+  <div id="menu">
+    <div>モードを選んでください</div>
+    <div id="mode-buttons">
+      <button id="endless-mode-btn" class="menu-btn">エンドレス</button>
+      <button id="score1000-btn" class="menu-btn">1000スコア</button>
+      <button id="time-attack-btn" class="menu-btn">タイムアタック(60s)</button>
+      <button id="break10-btn" class="menu-btn">10BREAK</button>
+    </div>
+    <div id="settings">
+      <h3>盤面の色</h3>
+      <label>
+        <input type="radio" name="colorMode" value="color" checked />
+        カラー
+      </label>
+      <label>
+        <input type="radio" name="colorMode" value="mono" />
+        モノクロ
+      </label>
+    </div>
+  </div>
+
+  <!-- ゲーム画面 -->
+  <div id="game-container">
+    <div id="info">
+      <div>スコア：<span id="score">0</span></div>
+      <div>ターゲット：<span id="target">10</span></div>
+      <div>選択：<span id="selected-count">0</span>/3マス</div>
+      <div>タイム：<span id="timer">—</span></div>
+      <div>BREAK数：<span id="break-count">0</span></div>
+    </div>
+    <div id="board"></div>
+    <div id="break-label">BREAK</div>
+    <div id="status"></div>
+    <div id="controls">
+      <button id="clear-btn" class="btn">選択解除</button>
+      <button id="reset-btn" class="btn">リセット</button>
+      <button id="menu-btn" class="btn">メニューへ</button>
+    </div>
+  </div>
+
+  <script>
+    const ROWS = 4;
+    const COLS = 4;
+    const TARGET = 10;
+    const MAX_SELECT = 3;
+
+    /** @type {(number|null)[][]} */
+    let board = [];
+    /** @type {{row:number,col:number}[]} */
+    let selectedCells = [];
+    /** @type {{row:number,col:number}[]} */
+    let clearingCells = [];
+    /** @type {{row:number,col:number}[]} */
+    let fallingCells = [];
+
+    let score = 0;
+    let gameOver = false;
+    let animating = false;
+    let currentBreakChain = 0;  // 今の連鎖数
+    let totalBreakCount = 0;    // 通算BREAK回数
+
+    // 'endless' | 'score1000' | 'time60' | 'break10'
+    let gameMode = null;
+    let useColor = true;
+
+    let timeLeft = 0;     // time60用
+    let timeElapsed = 0;  // score1000 / break10用（経過秒）
+    let timerId = null;
+
+    let inputEnabled = false;  // BREAK→START演出が終わるまで false
+
+    function randValue() {
+      return Math.floor(Math.random() * 9) + 1; // 1〜9
+    }
+
+    function createEmptyBoard() {
+      board = new Array(ROWS)
+        .fill(0)
+        .map(() => new Array(COLS).fill(0));
+    }
+
+    function fillBoardRandom() {
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          board[r][c] = randValue();
+        }
+      }
+    }
+
+    function hasValidCombo() {
+      const values = [];
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const v = board[r][c];
+          if (v != null) values.push(v);
+        }
+      }
+      const n = values.length;
+      // 2つ組み合わせ
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          if (values[i] + values[j] === TARGET) return true;
+        }
+      }
+      // 3つ組み合わせ
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          for (let k = j + 1; k < n; k++) {
+            if (values[i] + values[j] + values[k] === TARGET) return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function findLineClearPositions() {
+      const posSet = new Set();
+
+      // 横4
+      for (let r = 0; r < ROWS; r++) {
+        const v0 = board[r][0];
+        if (
+          v0 != null &&
+          board[r][1] === v0 &&
+          board[r][2] === v0 &&
+          board[r][3] === v0
+        ) {
+          for (let c = 0; c < COLS; c++) posSet.add(`${r},${c}`);
+        }
+      }
+
+      // 縦4
+      for (let c = 0; c < COLS; c++) {
+        const v0 = board[0][c];
+        if (
+          v0 != null &&
+          board[1][c] === v0 &&
+          board[2][c] === v0 &&
+          board[3][c] === v0
+        ) {
+          for (let r = 0; r < ROWS; r++) posSet.add(`${r},${c}`);
+        }
+      }
+
+      return Array.from(posSet).map(key => {
+        const [r, c] = key.split(',').map(Number);
+        return { row: r, col: c };
+      });
+    }
+
+    function clearLinesOnceNoAnim() {
+      const positions = findLineClearPositions();
+      if (positions.length === 0) return false;
+      for (const pos of positions) {
+        board[pos.row][pos.col] = null;
+      }
+      applyGravityAndRefill();
+      return true;
+    }
+
+    function initBoard() {
+      createEmptyBoard();
+      do {
+        fillBoardRandom();
+        while (clearLinesOnceNoAnim()) {}
+      } while (!hasValidCombo());
+    }
+
+    function renderBoard() {
+      const boardEl = document.getElementById('board');
+      boardEl.innerHTML = '';
+
+      const fallingSet = new Set(fallingCells.map(p => `${p.row},${p.col}`));
+
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const cellBtn = document.createElement('button');
+          cellBtn.className = 'cell';
+          const val = board[r][c];
+
+          if (val != null) {
+            cellBtn.textContent = String(val);
+            if (useColor) {
+              cellBtn.classList.add(`v${val}`);
+            }
+          } else {
+            cellBtn.textContent = '';
+          }
+
+          if (selectedCells.some(sel => sel.row === r && sel.col === c)) {
+            cellBtn.classList.add('selected');
+          }
+
+          if (clearingCells.some(sel => sel.row === r && sel.col === c)) {
+            cellBtn.classList.add('clearing');
+          } else if (fallingSet.has(`${r},${c}`)) {
+            cellBtn.classList.add('falling');
+          }
+
+          cellBtn.addEventListener('click', () => onCellClick(r, c));
+          boardEl.appendChild(cellBtn);
+        }
+      }
+
+      fallingCells = [];
+
+      document.getElementById('score').textContent = score;
+      document.getElementById('target').textContent = TARGET;
+      document.getElementById('selected-count').textContent = selectedCells.length;
+      document.getElementById('break-count').textContent = totalBreakCount;
+    }
+
+    function setStatus(text, isError = false) {
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = text;
+      statusEl.className = isError ? 'game-over' : '';
+    }
+
+    function getSelectionSumAndVals() {
+      let sum = 0;
+      const vals = [];
+      for (const sel of selectedCells) {
+        const v = board[sel.row][sel.col];
+        if (v != null) {
+          sum += v;
+          vals.push(v);
+        }
+      }
+      return { sum, vals };
+    }
+
+    function showLabel(text) {
+      const el = document.getElementById('break-label');
+      if (!el) return;
+      el.textContent = text;
+      el.classList.remove('break-anim');
+      void el.offsetWidth;
+      el.classList.add('break-anim');
+    }
+
+    function showBreakLabel(multiplier) {
+      const text = multiplier > 1 ? `BREAK x${multiplier}` : 'BREAK';
+      showLabel(text);
+    }
+
+    function playStartSequence() {
+      inputEnabled = false;
+      showLabel('BREAK');
+      setTimeout(() => { showLabel('START'); }, 650);
+      setTimeout(() => { inputEnabled = true; }, 1300);
+    }
+
+    function updateTimerLabel() {
+      const timerEl = document.getElementById('timer');
+      if (!timerEl) return;
+
+      if (gameMode === 'time60') {
+        timerEl.textContent = `${timeLeft}s`;
+      } else if (gameMode === 'score1000' || gameMode === 'break10') {
+        timerEl.textContent = `${timeElapsed}s`;
+      } else {
+        timerEl.textContent = '—';
+      }
+    }
+
+    function setupTimer() {
+      if (timerId) {
+        clearInterval(timerId);
+        timerId = null;
+      }
+      timeLeft = 0;
+      timeElapsed = 0;
+
+      if (gameMode === 'time60') {
+        timeLeft = 60;
+        timeElapsed = 0;
+        updateTimerLabel();
+        timerId = setInterval(() => {
+          if (gameOver) {
+            clearInterval(timerId);
+            timerId = null;
+            return;
+          }
+          timeLeft--;
+          timeElapsed++;
+          updateTimerLabel();
+          if (timeLeft <= 0) {
+            finishGame(`タイムアップ！ スコア：${score}`);
+          }
+        }, 1000);
+      } else if (gameMode === 'score1000' || gameMode === 'break10') {
+        timeElapsed = 0;
+        updateTimerLabel();
+        timerId = setInterval(() => {
+          if (gameOver) {
+            clearInterval(timerId);
+            timerId = null;
+            return;
+          }
+          timeElapsed++;
+          updateTimerLabel();
+        }, 1000);
+      } else {
+        updateTimerLabel();
+      }
+    }
+
+    function finishGame(message) {
+      if (gameOver) return;
+      gameOver = true;
+      if (timerId) {
+        clearInterval(timerId);
+        timerId = null;
+      }
+      setStatus(message, true);
+    }
+
+    function checkGoalConditions() {
+      if (gameOver) return;
+      if (gameMode === 'score1000' && score >= 1000) {
+        finishGame(`スコア1000達成！ タイム：${timeElapsed}秒`);
+      } else if (gameMode === 'break10' && totalBreakCount >= 10) {
+        finishGame(`BREAKを10回達成！ タイム：${timeElapsed}秒 スコア：${score}`);
+      }
+    }
+
+    function runLineAndColumnClearsWithAnimation(doneCallback) {
+      const positions = findLineClearPositions();
+      if (positions.length === 0) {
+        doneCallback();
+        return;
+      }
+
+      currentBreakChain += 1;
+      totalBreakCount += 1;
+      const mult = currentBreakChain;
+      showBreakLabel(mult);
+
+      clearingCells = positions;
+      renderBoard();
+
+      setTimeout(() => {
+        let lineSum = 0;
+        for (const pos of positions) {
+          const v = board[pos.row][pos.col];
+          if (v != null) lineSum += v;
+        }
+        const gained = lineSum * mult;
+        score += gained;
+
+        setStatus(`BREAK x${mult}！ ${lineSum} × ${mult} = +${gained}`);
+        document.getElementById('break-count').textContent = totalBreakCount;
+
+        checkGoalConditions();
+
+        for (const pos of positions) {
+          board[pos.row][pos.col] = null;
+        }
+        clearingCells = [];
+        applyGravityAndRefill();
+        renderBoard();
+
+        runLineAndColumnClearsWithAnimation(doneCallback);
+      }, 180);
+    }
+
+    function handleHit(vals, sum) {
+      score += sum;
+      setStatus(`OK！ ${vals.join(' + ')} = ${sum} 点獲得`);
+
+      checkGoalConditions();
+
+      const positions = selectedCells.map(sel => ({ row: sel.row, col: sel.col }));
+
+      animating = true;
+      clearingCells = positions;
+      renderBoard();
+
+      setTimeout(() => {
+        for (const pos of positions) {
+          board[pos.row][pos.col] = null;
+        }
+        clearingCells = [];
+        applyGravityAndRefill();
+
+        currentBreakChain = 0;
+
+        runLineAndColumnClearsWithAnimation(() => {
+          selectedCells = [];
+          renderBoard();
+
+          if (!hasValidCombo() && !gameOver) {
+            finishGame(`もう「足して${TARGET}」の組み合わせがありません。スコア：${score}`);
+          }
+          animating = false;
+        });
+      }, 180);
+    }
+
+    function onCellClick(row, col) {
+      if (!inputEnabled || gameOver || animating) return;
+
+      const idx = selectedCells.findIndex(sel => sel.row === row && sel.col === col);
+      if (idx !== -1) {
+        selectedCells.splice(idx, 1);
+        renderBoard();
+        const { sum } = getSelectionSumAndVals();
+        if (selectedCells.length > 0) {
+          setStatus(`現在の合計：${sum}（ターゲットは ${TARGET}）`);
+        } else {
+          setStatus('');
+        }
+        return;
+      }
+
+      if (selectedCells.length >= MAX_SELECT) {
+        selectedCells = [];
+      }
+
+      selectedCells.push({ row, col });
+      renderBoard();
+
+      const { sum, vals } = getSelectionSumAndVals();
+
+      if (selectedCells.length >= 2 && sum === TARGET) {
+        handleHit(vals, sum);
+      } else if (sum > TARGET || (selectedCells.length === MAX_SELECT && sum !== TARGET)) {
+        setStatus(`合計は ${sum} でした。（ターゲットは ${TARGET}）`, true);
+        selectedCells = [];
+        renderBoard();
+      } else {
+        setStatus(`現在の合計：${sum}（ターゲットは ${TARGET}）`);
+      }
+    }
+
+    function applyGravityAndRefill() {
+      const oldBoard = board.map(row => row.slice());
+      fallingCells = [];
+
+      for (let c = 0; c < COLS; c++) {
+        const temp = [];
+        for (let r = ROWS - 1; r >= 0; r--) {
+          const v = board[r][c];
+          if (v != null) temp.push(v);
+        }
+        let idx = 0;
+        for (let r = ROWS - 1; r >= 0; r--) {
+          if (idx < temp.length) {
+            board[r][c] = temp[idx++];
+          } else {
+            board[r][c] = randValue();
+          }
+        }
+      }
+
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const newV = board[r][c];
+          const oldV = oldBoard[r][c];
+          if (newV != null && (oldV == null || newV !== oldV)) {
+            fallingCells.push({ row: r, col: c });
+          }
+        }
+      }
+    }
+
+    function clearSelection() {
+      if (!inputEnabled || gameOver || animating) return;
+      selectedCells = [];
+      renderBoard();
+      setStatus('');
+    }
+
+    function internalStartGame() {
+      score = 0;
+      gameOver = false;
+      animating = false;
+      selectedCells = [];
+      clearingCells = [];
+      fallingCells = [];
+      currentBreakChain = 0;
+      totalBreakCount = 0;
+      setStatus('');
+      initBoard();
+      setupTimer();
+      document.getElementById('menu').style.display = 'none';
+      const gc = document.getElementById('game-container');
+      gc.style.display = 'flex';
+      renderBoard();
+      playStartSequence();
+    }
+
+    function startGameFromMenu(mode) {
+      gameMode = mode;
+      const selected = document.querySelector('input[name="colorMode"]:checked');
+      useColor = !selected || selected.value === 'color';
+      internalStartGame();
+    }
+
+    function resetGame() {
+      if (!gameMode) return;
+      internalStartGame();
+    }
+
+    function backToMenu() {
+      if (timerId) {
+        clearInterval(timerId);
+        timerId = null;
+      }
+      gameOver = true;
+      document.getElementById('game-container').style.display = 'none';
+      document.getElementById('menu').style.display = 'flex';
+      setStatus('');
+    }
+
+    document.getElementById('endless-mode-btn').addEventListener('click', () => {
+      startGameFromMenu('endless');
+    });
+
+    document.getElementById('score1000-btn').addEventListener('click', () => {
+      startGameFromMenu('score1000');
+    });
+
+    document.getElementById('time-attack-btn').addEventListener('click', () => {
+      startGameFromMenu('time60');
+    });
+
+    document.getElementById('break10-btn').addEventListener('click', () => {
+      startGameFromMenu('break10');
+    });
+
+    document.getElementById('clear-btn').addEventListener('click', clearSelection);
+    document.getElementById('reset-btn').addEventListener('click', resetGame);
+    document.getElementById('menu-btn').addEventListener('click', backToMenu);
+  </script>
+</body>
+</html>
